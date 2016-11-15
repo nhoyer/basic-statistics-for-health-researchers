@@ -1,0 +1,115 @@
+
+/*****     Opgave 1  ********/
+
+data astma;
+input udskrevet$ treat$ antal;
+datalines;
+nej pred 47
+nej plac 71
+ja pred 20
+ja plac 2
+;
+run;
+
+proc freq data = astma;
+weight antal;
+table treat * udskrevet / chisq nopercent nocol expected;
+run;
+
+proc freq data = astma;
+weight antal;
+table treat * udskrevet / riskdiff;
+run;
+
+proc freq data = astma;
+weight antal;
+table treat * udskrevet / relrisk;
+run;
+
+proc sort data=astma; by treat;
+run;
+
+proc freq data=astma; by treat;
+   tables udskrevet;
+exact binomial;
+weight antal;
+run;
+
+/*****     Opgave 2  ********/
+
+data operation;
+input udfald antal;
+datalines;
+0 10
+1 0    
+;
+run;    
+
+proc freq data=operation;
+   tables udfald / binomial(p=0.8);
+exact binomial;
+weight antal;
+run;
+
+data operation;
+input udfald antal;
+datalines;
+0 17
+1 0    
+;
+run;    
+
+proc freq data=operation;
+   tables udfald / binomial(p=0.8);
+exact binomial;
+weight antal;
+run;
+
+/*****     Opgave 3  ********/
+
+data sov;
+input timer n sex $;
+datalines;
+7 88 D
+7.5 109 D
+8 210 D
+8.5 324 D
+9 359 D
+9.5 313 D
+10 182 D
+10.5 85 D
+7 92 P
+7.5 108 P
+8 217 P
+8.5 349 P
+9 436 P
+9.5 334 P
+10 198 P
+10.5 65 P
+;
+run;
+
+proc freq data = sov;
+weight n;
+table timer * sex / chisq trend cumcol nopercent norow;
+run;
+
+proc ttest data = sov;
+  class sex;
+  freq n;
+  var timer;
+run;
+
+/**** Mann-Whitney test **************/
+proc npar1way wilcoxon data=sov;
+    class sex;
+    freq n;
+    var timer;
+run;
+
+
+    
+
+
+
+

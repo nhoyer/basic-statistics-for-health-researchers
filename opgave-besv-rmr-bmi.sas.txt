@@ -1,0 +1,146 @@
+FILENAME navn URL "http://staff.pubhealth.ku.dk/~lts/basal/data/rmr.txt";
+
+data rmrdata;
+infile navn firstobs=2;
+input bw rmr;
+
+/* de to næste linier er til senere brug */
+bw70=bw-70;
+if rmr>2000 then delete;
+
+label bw='body weight'
+      rmr='resting metabolic rate';
+run;
+
+proc print data=rmrdata;
+run;
+
+proc gplot data=rmrdata;
+  plot rmr*bw
+ /  haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=blue i=none h=2 r=1;
+run;
+
+proc reg data=rmrdata; 
+  model rmr=bw / clb;
+run;
+
+proc glm data=rmrdata;
+    model rmr = bw / solution clparm;
+estimate 'rmr ved 70 kg' intercept 1 bw 70;
+run;
+
+proc gplot data=rmrdata;
+  plot rmr*bw
+ /  haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=blue i=rlclm95 h=2 r=1;
+run;
+
+proc gplot data=rmrdata;
+  plot rmr*bw
+ /  haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=blue i=rlcli95 h=2 r=1;
+run;
+
+ods graphics on;
+proc glm data=rmrdata;
+  model rmr=bw;
+run;
+ods graphics off;
+quit;
+
+proc reg data=rmrdata;
+  model rmr=bw / corrb r p;
+  output out=ny p=yhat r=resid student=stresid cookd=cook 
+                rstudent=uresid;
+run;
+
+proc gplot data=ny;
+  plot resid*bw resid*yhat
+ / vref=0 lv=33 haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=blue i=none h=2 r=1;
+run;
+
+proc univariate normal data=ny;
+  var resid;
+  histogram / cfill=gray height=3 normal;
+  probplot / height=3 normal(mu=EST sigma=EST l=33);
+run;
+
+proc gplot data=ny;
+  plot cook*rmr 
+ / haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=blue i=none h=2 r=1;
+run;
+
+/**********************************************************/
+
+data sundby;
+set sasuser.sundby;
+
+if kon<0 then delete;
+
+if kon=2 then gender='female';
+if kon=1 then gender='male';
+
+vaegt=v75;
+hoejde=v76/100;
+
+log10vaegt=log10(vaegt);
+log10hoejde=log10(hoejde);
+
+bmi=vaegt/hoejde**2;
+run;
+
+proc means data=sundby;
+run;
+
+proc sort data=sundby; by gender;
+run;
+
+proc reg data=sundby; by gender;
+      model log10vaegt=log10hoejde / clb;
+run;
+
+proc sort data=sundby; by gender;
+run;
+
+proc gplot data=sundby uniform; by gender;
+  plot log10vaegt*log10hoejde=gender
+ /  haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=red i=rl h=2 r=1;
+symbol2 v=circle c=blue i=rl h=2 r=1;
+run;
+
+proc gplot data=sundby uniform; by gender;
+  plot bmi*hoejde=gender
+ /  haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=red i=rl h=2 r=1;
+symbol2 v=circle c=blue i=rl h=2 r=1;
+run;
+
+proc corr spearman data=sundby; by gender;
+    var bmi hoejde;
+run;
+

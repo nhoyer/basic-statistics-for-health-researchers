@@ -1,0 +1,182 @@
+options  nocenter  ps = 65 ls = 75;
+
+filename graphout "MyGraphs";
+goptions device=png gsfname=graphout;
+
+/* Indlæsning fra tekst-fil på hjemmeside */    
+
+FILENAME navn URL "http://biostat.ku.dk/~lts/basal/data/oeko.txt";
+
+data oeko;
+infile navn firstobs=2;
+input sas_ansat $ abstid konc;
+
+lkonc=log10(konc);
+
+/* variablen gruppe er beskrevet i spørgsmål 1 og 4a */
+saskode=(sas_ansat='ja');
+gruppe=10*saskode+abstid;
+run;
+
+proc print data=oeko;
+run;
+
+/* scatterplot, opdelt efter erhverv */
+proc sgplot data=oeko;
+    scatter x=abstid y=konc / group=sas_ansat;
+run;
+
+/* scatterplot på log-skala, opdelt efter erhverv */
+proc sgplot data=oeko;
+    scatter x=abstid y=lkonc / group=sas_ansat;
+run;
+
+/* scatterplot på log-skala, alle 6 grupper */
+ods graphics / reset imagename='oeko-6-grupper';
+proc sgplot data=oeko;
+    scatter y=lkonc x=gruppe / group=sas_ansat;
+run;
+ods graphics off;
+
+proc means N mean median stddev stderr clm data=oeko;
+class sas_ansat;
+var konc lkonc;
+run;
+
+/* T-test på logaritmen til sædkoncentrationen */
+proc ttest data=oeko;
+    class sas_ansat;
+    var lkonc;
+run;
+
+proc means N mean median data=oeko;
+class sas_ansat abstid;
+var konc lkonc;
+run;
+
+proc means N mean median stddev stderr clm data=oeko;
+class sas_ansat abstid;
+var konc lkonc;
+run;
+
+proc freq data=oeko;
+table sas_ansat*abstid / nocol nopercent chisq;
+run;
+
+/* model uden interaktion, med modelkontrol */
+ods graphics on;
+proc glm plots=DiagnosticsPanel data=oeko;
+  class sas_ansat abstid;
+model lkonc=sas_ansat abstid / solution clparm;
+output out=ny p=predikt;
+run;
+ods graphics off;
+
+/* predikterede værdier fra additiv model */
+data ny;
+set ny;
+predikteret=10**predikt;
+run;
+proc sort data=ny;
+by sas_ansat abstid;
+run;
+ods graphics / reset imagename='pred-additiv';
+proc sgplot data=ny; where nr in (13,11,1,148,146,147); 
+    series y=predikteret x=abstid / group=sas_ansat;
+run;
+ods graphics off;
+
+/* test af ens varianser, som ensidet variansanalyse i 6 grupper */
+proc glm data=oeko;
+  class gruppe;
+model lkonc=gruppe;
+means gruppe / hovtest=levene;
+run;
+
+/* model med interaktion */
+ods graphics on;
+proc glm plots=DiagnosticsPanel data=oeko;
+  class sas_ansat abstid;
+model lkonc=sas_ansat abstid sas_ansat*abstid / solution;
+output out=ny p=predikt;
+run;
+ods graphics off;
+
+/* predikterede værdier fra interaktionsmodel */
+data ny;
+set ny;
+predikteret=10**predikt;
+run;
+proc sort data=ny;
+by sas_ansat abstid;
+run;
+ods graphics / reset imagename='pred-interaktion';
+proc sgplot data=ny; where nr in (13,11,1,148,146,147); 
+    series y=predikteret x=abstid / group=sas_ansat;
+run;
+ods graphics off;
+
+
+/***************************************************************/
+
+/* indlæsning fra tekst-fil på C-drevet */
+data space;
+infile "http://staff.pubhealth.ku.dk/~lts/basal/data/space.txt" 
+        URL firstobs=2;
+input salt pre post;
+
+dif=post-pre;
+snit=(pre+post)/2;
+run;
+
+/* histogram og fraktildiagram, for salt-gruppen alene */
+proc univariate data=space; where salt=1;
+var dif;
+histogram / height=3 normal(mu=EST sigma=EST);
+probplot / height=3 normal(mu=EST sigma=EST l=33);
+run;
+
+/* Bland-Altman plot */
+proc gplot data=space; where salt=1;
+  plot dif*snit
+  / vref=0 lv=33 cv=red haxis=axis1 vaxis=axis2 frame;
+axis1 value=(H=2) minor=NONE label=(H=3);
+axis2 value=(H=2) minor=NONE label=(A=90 R=0 H=3);
+symbol v=circle i=none c=BLUE h=2 l=1 w=2;
+run;
+
+/* sortering nødvendig for at bruge 'by salt' nedenfor */    
+proc sort data=space;  by salt;
+run;
+
+/* parret t-test for pre og post for hver gruppe for sig */
+proc ttest data=space; by salt;
+    paired pre*post;
+    run;
+    
+/* non-parametrisk parret test */
+proc univariate data=space; by salt;
+var dif;
+run;
+
+/* uparrede t-test til sammenligning af grupperne */
+proc ttest data=space;
+class salt;
+var dif pre;
+run;
+
+/* non-parametrisk Uparret test */
+proc npar1way wilcoxon data=space;
+class salt;
+var pre dif;
+exact hl;
+run;
+
+/* uparrede non-parametriske test til sammenligning af grupperne */
+proc npar1way wilcoxon data=space;
+class salt;
+var pre dif;
+exact hl;
+run;
+
+

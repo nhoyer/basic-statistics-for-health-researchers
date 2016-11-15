@@ -1,0 +1,91 @@
+data mus;
+infile 'C:\Basalstatistik\brain.txt' firstobs=2;
+input litter body brain;
+run;
+
+proc gplot data=mus;
+  plot brain*litter brain*body body*litter
+ /  haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=blue i=none h=2 r=1;
+run;
+
+proc reg data=mus;
+  model brain=litter / clb;
+run;
+
+proc reg data=mus;
+  model brain=body / clb;
+run;
+
+proc reg data=mus;
+  model body=litter / clb;
+run;
+
+proc corr pearson spearman data=mus;
+  var litter body;
+run;
+
+proc reg data=mus;
+  model brain=body litter / clb;
+run;
+
+/************************************************/
+    
+data sol;
+input soltimer biomasse;
+datalines;
+29.7 16.6
+68.4 49.1
+120.7 121.7
+217.2 219.6
+313.5 375.5
+419.1 570.8
+535.9 648.2
+641.5 755.6
+;
+run;
+
+proc gplot data=sol;
+  plot biomasse*soltimer
+ /  haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=blue i=rl h=2 r=1;
+run;
+
+proc reg data=sol;
+model biomasse=soltimer / clb;
+test soltimer=1;
+estimate "sol=200" intercept 1 sol 200;
+run;
+
+proc reg data=sol;
+model biomasse=soltimer / noint clb;
+estimate "sol=200" sol 200;
+run;
+
+proc gplot data=sol;
+  plot biomasse*soltimer
+ /  haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=blue i=rlclm95 h=2 r=1;
+run;
+
+proc gplot data=sol;
+  plot biomasse*soltimer
+ /  haxis=axis1 vaxis=axis2 frame;
+axis1 offset=(3,3) label=(H=3) value=(H=2) minor=NONE;
+axis2 offset=(1,1) value=(H=2) minor=NONE
+      label=(A=90 R=0 H=3);
+symbol1 v=circle c=blue i=rl0clm95 h=2 r=1;
+run;
+
+
+
+

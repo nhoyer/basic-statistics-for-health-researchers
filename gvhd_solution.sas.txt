@@ -1,0 +1,185 @@
+
+/**************   OPGAVE 1    ***************/
+
+FILENAME navn URL "http://staff.pubhealth.ku.dk/~lts/basal/data/gvhd.txt";
+
+data gvhd;
+infile navn firstobs=2;
+input pnr rcpage donage grp preg index gvhd;
+
+* Dannelse af mere beskrivende variabel for type ;
+if grp=1 then type="aml";
+if grp=2 then type="all";
+if grp=3 then type="cml";
+
+* Dannelse af indikatorvariable for alle tre grupper ;
+aml = (grp = 1) ;
+all = (grp = 2) ;
+cml = (grp = 3) ;
+
+* Logaritmetransformation med naturlig og 2-talslogaritme ;
+logindex = log(index) ;
+log2index = log2(index) ;
+run ;
+
+proc means data = gvhd;
+run;
+
+proc sgplot data=gvhd;
+scatter X=rcpage Y=donage / group=gvhd;
+run;
+
+/*  SPM 1 */
+
+proc freq data = gvhd;
+tables type*gvhd / nocol nopercent expected chisq;
+run;
+
+/*  SPM 2 */
+
+proc logistic data=gvhd;
+class type preg / param=GLM;
+model gvhd(event="1") = type logindex preg donage rcpage /
+                        lackfit link=logit;
+output out=pred lower=lower pred=phat upper=upper reschi=reschi;
+run;
+
+/*  SPM 3a */
+
+proc logistic data=gvhd;
+class type preg / param=GLM;
+model gvhd(event="1") = type logindex preg donage;
+run;
+
+proc logistic data=gvhd;
+class type preg / param=GLM;
+model gvhd(event="1") = logindex preg donage;
+run;
+
+proc logistic data=gvhd;
+class type preg / param=GLM;
+model gvhd(event="1") = logindex donage;
+run;
+
+/*  SPM 3a */
+
+proc logistic data=gvhd;
+class type(ref="all") preg / param=GLM;
+model gvhd(event="1") = type logindex preg donage;
+run;
+
+proc logistic data=gvhd;
+class type preg / param=GLM;
+model gvhd(event="1") = type logindex preg donage;
+estimate "aml vs all" type -1 1 0 / exp;
+run;
+
+proc logistic data=gvhd;
+class cml preg / param=GLM;
+model gvhd(event="1") = cml logindex preg donage;
+run;
+
+proc logistic data=gvhd;
+class cml preg / param=GLM;
+model gvhd(event="1") = cml logindex preg;
+run;
+
+/*  SPM 5 */
+
+proc logistic data=gvhd;
+class cml preg / param=GLM;
+model gvhd(event="1") = cml log2index preg;
+run;
+
+/*  SPM 6 */
+
+proc logistic data=gvhd;
+class cml preg / param=GLM;
+model gvhd(event="1") = cml log2index preg preg*log2index;
+estimate "log2index for preg=0" log2index 1 preg*log2index 1 0 / exp;
+estimate "log2index for preg=1" log2index 1 preg*log2index 0 1 / exp;
+run;
+
+/**************   OPGAVE 2    ***************/
+
+
+/*  SPM 1 */
+
+data a1;
+input gerningsmand$ death$ antal;
+datalines;
+white yes 53
+white no 430
+black yes 15
+black no 176
+;
+run;
+
+proc freq data=a1;
+   tables gerningsmand*death / nopercent nocol chisq riskdiff relrisk;
+weight antal;
+run;
+
+/*  SPM 2 */
+
+data a1;
+input offer$ gerningsmand$ death$ antal;
+datalines;
+white white yes 53
+white white no 414
+white black yes 11
+white black no 37
+black white yes 0
+black white no 16
+black black yes 4
+black black no 139
+;
+run;
+
+proc freq data=a1;
+   tables offer*gerningsmand / norow nocol chisq riskdiff relrisk;
+weight antal;
+run;
+
+proc freq data=a1;
+   tables gerningsmand*death / nopercent nocol chisq riskdiff relrisk;
+weight antal;
+run;
+
+/*  SPM 3 */
+
+proc genmod descending data = a1;
+weight antal;
+class offer gerningsmand;
+model death = offer gerningsmand /
+    dist=binomial link=logit;
+estimate "offer b vs w" offer 1 -1 / exp;
+estimate "offer w vs b" offer -1 1 / exp;
+estimate "gerningsmand b vs w" gerningsmand 1 -1 / exp;
+run;
+
+/*  SPM 4 */
+
+proc sort data=a1;
+    by offer;
+run;
+
+proc freq data=a1; by offer;
+   tables gerningsmand*death / nopercent nocol chisq riskdiff relrisk;
+weight antal;
+run;
+
+proc genmod descending plots=all data = a1;
+weight antal;
+class offer gerningsmand;
+model death = offer gerningsmand offer*gerningsmand /
+    dist=binomial link=logit type3;
+estimate "offer w: gerningsmand b vs w" 
+    gerningsmand 1 -1 offer*gerningsmand 0 0 1 -1 / exp;
+estimate "offer b: gerningsmand b vs w" 
+    gerningsmand 1 -1 offer*gerningsmand 1 -1 0 0 / exp;
+run;
+
+
+
+

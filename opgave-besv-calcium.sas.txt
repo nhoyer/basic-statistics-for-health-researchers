@@ -1,0 +1,172 @@
+options  nocenter  ps = 65 ls = 75;
+
+data calcium;
+infile "http://staff.pubhealth.ku.dk/~lts/basal/data/calcium_modi.txt" 
+        URL firstobs=2;   
+   input id treat$ dage bmd1 bmd5;
+
+    aar=dage/365;
+    delta_bmd=bmd5-bmd1;
+
+    delta_pr_aar=delta_bmd*365/dage;
+    delta_lpr_aar=delta_lbmd*365/dage;
+
+    if bmd5<0 then bortfald=1; else bortfald=0;
+
+run;
+/*
+proc print;
+   var treat dage bmd1 bmd5;
+run;
+*/
+
+title 'spm 1';
+
+proc sgplot data=calcium;
+  scatter Y=bmd5 X=bmd1 / group=treat;
+run;
+
+proc sgplot data=calcium;
+  scatter Y=delta_bmd X=dage / group=treat;
+run;
+
+data lang;
+set calcium;
+
+bmd=bmd1; tidspunkt=1; tid=0; output;
+bmd=bmd5; tidspunkt=5; tid=dage; output;
+run;
+
+proc sort data=lang; by treat;
+run;
+
+proc sgplot data=lang; by treat;
+series X=tid Y=bmd / group=id;
+run;
+
+proc sgpanel data=lang; 
+panelby treat;
+series X=tid Y=bmd / group=id;
+run;
+
+title 'spm 2';
+
+proc tabulate data=calcium;
+    class treat;
+    var bmd1 bmd5;
+    table treat,(bmd1 bmd5)*(N*(f=4.0) mean*(f=6.4) std*(f=6.4));
+run;
+
+proc means data=calcium;
+    class treat;
+    var dage bmd1 bmd5 delta_bmd;
+run;
+
+proc sgplot data=calcium;
+    vbox bmd1 / category=treat;
+run;
+
+proc ttest data=calcium;
+    class treat;
+    var bmd1;
+run;
+
+
+
+title 'spm 3';
+
+proc sgplot data=calcium;
+    vbox bmd5 / category=treat;
+run;
+
+proc ttest data=calcium;
+    class treat;
+    var bmd5;
+run;
+
+
+title 'spm 4';
+
+proc sgplot data=calcium;
+    reg X=bmd1 Y=bmd5 / group=treat;
+run;
+
+proc glm data=calcium;
+    class treat;
+    model bmd5=bmd1 treat / solution clparm;
+estimate "bmd5 for C-pige med bmd1=0.8" intercept 1 treat 1 0 bmd1 0.8;
+estimate "bmd5 for P-pige med bmd1=0.8" intercept 1 treat 0 1 bmd1 0.8;
+run;
+
+
+title 'spm 5';
+
+proc sgplot data=calcium;
+    vbox delta_bmd / category=treat;
+run;
+
+proc means N mean stderr clm t probt data=calcium;
+    class treat;
+    var delta_bmd;
+run;
+
+
+
+title 'spm 6';
+
+proc ttest data=calcium;
+    class treat;
+    var delta_bmd;
+run;
+
+
+title 'spm 7';
+
+proc sgplot data=calcium;
+    reg X=bmd1 Y=delta_bmd / group=treat;
+run;
+
+proc glm data=calcium;
+    class treat;
+    model delta_bmd=bmd1 treat / solution clparm;
+run;
+
+
+title 'spm 8';
+
+proc ttest data=calcium;
+    class treat;
+    var delta_pr_aar;
+run;
+
+proc glm data=calcium;
+    class treat;
+    model delta_bmd=dage treat / solution clparm;
+run;
+
+proc glm data=calcium;
+    class treat;
+    model delta_bmd=dage bmd1 treat / solution clparm;
+run;
+
+
+title 'spm 9';
+
+proc sort data=calcium; by treat;
+run;
+
+proc tabulate data=calcium;
+    class treat bortfald;
+    var bmd1;
+    table treat*bortfald,bmd1*(N*(f=4.0) mean*(f=6.4) std*(f=6.4));
+run;
+
+proc sgplot data=calcium; by treat;
+  vbox bmd1 / category=bortfald;
+run;
+
+proc ttest data=calcium; by treat;
+    class bortfald;
+    var bmd1;
+    run;
+    

@@ -1,0 +1,99 @@
+FILENAME navn URL "http://staff.pubhealth.ku.dk/~lts/basal/data/cadmium.txt";
+
+data cadmium;
+infile navn firstobs=2;
+input grp age vitcap;
+
+if grp=1 then group='1:expo>10';
+if grp=2 then group='2:expo<10';
+if grp=3 then group='3:no-expo';
+run;
+
+proc means data=cadmium;
+  class group;
+  var age vitcap;
+run;
+
+proc glm data=cadmium;
+  class group;
+  model vitcap=group / solution;
+lsmeans group / adjust=bon cl pdiff;
+run;
+
+proc npar1way wilcoxon data=cadmium;
+  class group;
+  var vitcap;
+run;
+
+proc corr data=cadmium; 
+  var age vitcap;
+run;
+
+proc sort data=cadmium;  by group;
+run;
+proc corr data=cadmium;  by group;
+  var age vitcap;
+run;
+
+proc glm data=cadmium;  by group;
+  model vitcap=age / solution clparm;
+run;
+
+proc glm data=cadmium;
+  class group;
+  model vitcap=group age group*age / solution clparm;
+estimate 'slope 1 vs. 2' group*age 1 -1 0;
+estimate 'slope 1 vs. 3' group*age 1 0 -1;
+estimate 'slope 2 vs. 3' group*age 0 1 -1;
+run;
+
+proc sgplot data=cadmium;
+reg Y=vitcap X=age / group=group;
+run;
+
+
+/*********** NY OPGAVE  ***********************/
+
+FILENAME navn URL "http://staff.pubhealth.ku.dk/~lts/basal/data/juul2.txt";
+
+data juul;
+infile navn firstobs=2;
+input age height menarche sexnr sigf1 tanner testvol weight;
+
+if sexnr=2 then sex='female';
+if sexnr=1 then sex='male';
+
+lnigf1=log(sigf1);
+bmi=weight/(height/100)**2;
+run;
+
+proc sort data=juul; by sex;
+run;
+
+ods graphics on;
+
+proc reg data=juul;  where tanner=1; by sex;
+  model lnigf1=age / cl;
+run;
+
+proc glm data=juul;  where tanner=1;
+  class sex;
+  model lnigf1=age sex sex*age / solution clparm;
+run;
+
+proc glm data=juul;  where age>25;
+  class sex;
+  model lnigf1=age sex sex*age / solution clparm;
+run;
+
+proc sgplot data=juul;  where sex ne ''; 
+loess Y=lnigf1 X=age / group=sex;
+run;
+
+proc glm data=juul; where age>25;
+  class sex;  
+  model lnigf1=age sex bmi / solution;
+run;
+
+   
+

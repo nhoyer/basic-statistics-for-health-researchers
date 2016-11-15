@@ -1,0 +1,271 @@
+options  nocenter  ps = 65 ls = 75;
+
+filename graphout "MyGraphs";
+goptions device=png gsfname=graphout;
+
+data wright;
+infile "http://staff.pubhealth.ku.dk/~lts/basal/data/wright.txt" 
+        URL firstobs=2;
+input wright1 wright2 mini1 mini2;
+
+/* summary statistics */
+proc means data=wright;
+run;
+
+/* plot 2. måling mod 1. måling */
+ods graphics / reset imagename='wright1vs2';
+proc sgplot data=wright;
+    scatter x=wright1 y=wright2 / 
+    markerattrs=(color=blue size=0.3cm);
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+ods graphics / reset imagename='mini1vs2';
+proc sgplot data=wright;
+    scatter x=mini1 y=mini2 / 
+    markerattrs=(color=blue size=0.3cm);
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+data wright1;
+set wright;
+
+wright_dif=wright1-wright2;
+wright_gs=(wright1+wright2)/2;
+mini_dif=mini1-mini2;
+mini_gs=(mini1+mini2)/2;
+
+dif=wright_gs-mini_gs;
+gnsnit=(wright_gs+mini_gs)/2;
+
+abs_wright_dif=abs(wright_dif);
+abs_mini_dif=abs(mini_dif);
+run;
+
+/* Bland-Altman plots, for hver af metoderne */
+ods graphics / reset imagename='wright-bland-altman';
+proc sgplot data=wright1;
+    scatter x=wright_gs y=wright_dif /
+    markerattrs=(color=blue size=0.3cm);
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+ods graphics / reset imagename='mini-bland-altman';
+proc sgplot data=wright1;
+    scatter x=mini_gs y=mini_dif /
+    markerattrs=(color=blue size=0.3cm);
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+/* histogrammer til check af normalfordelingen */
+ods graphics / reset imagename='wright-dif-hist';
+proc sgplot data=wright1;
+    histogram wright_dif;
+    density wright_dif;
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+ods graphics / reset imagename='mini-dif-hist';
+proc sgplot data=wright1;
+    histogram mini_dif;
+    density mini_dif;
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+/* fraktildiagrammer til check af normalfordelingen */
+ods graphics / reset imagename='mini-dif-hist';
+proc univariate data=wright1;
+    var wright_dif;
+    probplot wright_dif / normal(mu=est sigma=est);
+run;
+ods graphics off;
+
+ods graphics on / reset imagename='wright-dif-qq';
+proc univariate data=wright1;
+    var wright_dif;
+    qqplot wright_dif / normal(mu=est sigma=est color=red)
+                  height=3; 
+run;
+ods graphics off;
+
+ods graphics on / reset imagename='mini-dif-qq';
+proc univariate data=wright1;
+    var mini_dif;
+    qqplot mini_dif / normal(mu=est sigma=est color=red)
+                  height=3; 
+run;
+ods graphics off;
+
+/* plot af differenser mod hinanden */
+ods graphics / reset imagename='dif-dif';
+proc sgplot data=wright1;
+    scatter x=wright_dif y=mini_dif /
+    markerattrs=(color=blue size=0.3cm);
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+ods graphics / reset imagename='abs-dif-dif';
+proc sgplot data=wright1;
+    scatter x=abs_wright_dif y=abs_mini_dif /
+    markerattrs=(color=blue size=0.3cm);
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+/* Bland-Altman plot for de to metoder overfor hinanden */
+ods graphics / reset imagename='gnsnit-bland-altman';
+proc sgplot data=wright1;
+    scatter x=gnsnit y=dif /
+    markerattrs=(color=blue size=0.3cm);
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+/* histogram til check af normalfordelingen */
+ods graphics / reset imagename='dif-hist';
+proc sgplot data=wright1;
+    histogram dif;
+    density dif;
+    xaxis labelattrs=(color=blue size=0.8cm);
+    yaxis labelattrs=(color=blue size=0.8cm);
+run;
+ods graphics off;
+
+/* T-test for at se, om der er systematisk forskel på de to metoder */
+proc ttest data=wright1;
+    paired wright_gs*mini_gs;
+run;
+
+proc ttest data=wright1;
+    var dif;
+run;
+
+data kors;
+set wright1;
+
+person=_n_;
+
+wright=wright1;  mini=mini_gs;  pkt=2*person+1; output;
+wright=wright2;  mini=mini_gs;  pkt=2*person+1; output;
+wright=wright_gs;  mini=mini1;  pkt=100+2*person+2; output;
+wright=wright_gs;  mini=mini2;  pkt=100+2*person+2; output;
+run;
+
+proc print data=kors;
+run;
+
+proc gplot data=kors;
+  plot mini*wright=pkt
+  / name="wright_kors" nolegend haxis=axis1 vaxis=axis2 frame;
+axis1 order=(100 to 700 by 100)
+      value=(H=2) minor=NONE label=(H=3 'Wright');
+axis2 order=(100 to 700 by 100)
+      value=(H=2) minor=NONE label=(A=90 R=0 H=3 'Mini wright');
+symbol1 v=circle i=join c=blue l=1 w=2 h=0.5 r=17;
+symbol2 v=circle i=join c=red l=1 w=2 h=0.5 r=17;
+run;
+
+/**********************************************************/
+
+FILENAME navn URL 
+    "http://staff.pubhealth.ku.dk/~lts/basal/data/sundby_lille.txt";
+
+data sundby;
+infile navn firstobs=2;
+input kon v75 v76 v17 v24af;
+
+if kon<0 then delete;
+if kon=2 then gender='female';
+if kon=1 then gender='male';
+vaegt=v75;
+hoejde=v76/100;
+bmi=vaegt/hoejde**2;
+run;
+    
+ods graphics / reset imagename='sundby-vaegt-box';
+proc sgplot data=sundby;
+    vbox vaegt / category=gender;
+    run;
+ods graphics off;
+
+proc univariate normal gout=plotud data=sundby;
+  class gender;  
+  var vaegt;
+  histogram vaegt / normal(color=red w=3)
+                  name="sundby_vaegt_hist"
+                  height=3 haxis=axis1 barlabel=count;
+  qqplot vaegt / normal(color=red w=3)
+                  name="sundby_vaegt_qqplot"
+                  height=3 haxis=axis1; 
+  axis1 label=(a=90 r=0 'Weight in kg');
+  output out=regn pctlpre=P_ pctlpts=2.5,97.5;
+run;
+
+proc print data=regn;
+run;
+
+proc means n mean median stddev min max data=sundby;
+    class gender;
+    var vaegt hoejde bmi;
+run;
+
+ods graphics / reset imagename='sundby-vaegt-hoejde';
+proc sgplot data=sundby;
+    scatter x=hoejde y=vaegt / group=gender;
+    run;
+ods graphics off;
+
+ods graphics / reset imagename='sundby-bmi-box';
+proc sgplot data=sundby;
+    vbox bmi / category=gender;
+    run;
+ods graphics off;
+
+proc univariate normal gout=plotud data=sundby;
+  class gender;  
+  var bmi;
+  histogram bmi / normal(color=red w=3)
+                  name="sundby_bmi_hist"
+                  height=3 
+                  barlabel=count;
+  qqplot bmi / normal(color=red w=3)
+                  name="sundby_bmi_qqplot"
+                  height=3; 
+   output out=regn pctlpre=P_ pctlpts=2.5,97.5;
+run;
+
+proc print data=regn;
+run;
+
+data check;
+set sundby;
+
+if gender="female" then over=(bmi>31);
+if gender="female" then under=(bmi<15.3 and bmi>0);
+if gender="male" then over=(bmi>30.6);
+if gender="male" then under=(bmi<17.8 and bmi>0);
+run;
+
+proc means n sum mean data=check;
+    class gender;
+    var under over;
+run;
+
+
+

@@ -1,0 +1,61 @@
+/* Hent tekst-filen fil.txt fra nettet */
+
+data a1;
+infile "http://staff.pubhealth.ku.dk/~lts/basal/data/fil.txt" URL firstobs=2;
+input var1 var2 osv;
+run;
+
+/* eller */
+
+FILENAME navn URL "http://staff.pubhealth.ku.dk/~lts/basal/data/fil.txt";
+
+data a1;
+infile navn firstobs=2;
+input var1 var2 osv;
+run;
+
+
+/* Hent tekst-filen fil.txt fra mappen "minfolder" på eget drev */
+
+
+data a1;
+infile "C:\minfolder\fil.txt" firstobs=2;
+input var1 var2 osv;
+run;
+
+
+/* Hent SAS-filen fil.sas7bdat fra mappen "minfolder" på eget drev */
+
+libname sas "C:\minfolder";
+
+data a1;
+set sas.fil;
+run;
+
+
+/* Hent SAS-filen "fil" fra mappen "sasuser" */
+
+data a1;
+set sasuser.fil;
+run;
+
+
+/* Hent Excel-fil ind fra mappen "minfolder" på eget drev */
+
+PROC IMPORT OUT= WORK.a1 DATAFILE="C:\minfolder\fil.xls"
+            DBMS=xls REPLACE;
+     GETNAMES=YES;
+RUN;
+
+/*
+Vedr. Excel-filer, se evt. også Birthes mere udførlige vejledning på linket:
+
+http://publicifsv.sund.ku.dk/~lts/basal/programmer/IndlaesExcel.sas
+*/
+
+/*
+Man kan altid erstatte navnet "a1"
+med
+"sasuser.a1"
+hvis man vil lave en permanent sasuser-fil
+*/    
